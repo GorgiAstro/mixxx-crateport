@@ -241,7 +241,8 @@ def main():
 	# simple streaming tar to stdout... dont send anything else to stdout if we do this, as it will mess up the tar file
 	if options.tarcrates == True:
                 tar = tarfile.open(fileobj=sys.stdout,mode='w|')
- 		for filename in filenamesfromCrates(conn):
+		# list set stuff to make list unique to get rid of doubled up file names.
+ 		for filename in list(set(filenamesfromCrates(conn))):
 			tar.add(filename)
 		tar.close()
 		sys.exit(0)
