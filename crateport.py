@@ -8,6 +8,7 @@ import xml.dom
 import xml.dom.minidom
 import platform
 import fileinput
+import tarfile
 from optparse import OptionParser
 
 
@@ -29,6 +30,21 @@ def generateCrateXML(crates):
 				ntrack.setAttribute(key, unicode(track[key]))
 	
 	return document.toxml()
+
+def listCrates(conn):
+	cursor = conn.cursor()
+	cratelist = []
+	
+	cursor.execute("SELECT id, name FROM crates")
+	
+	row = cursor.fetchone()
+	while row:
+		cratelist.append(row[1])
+
+		
+		row = cursor.fetchone()
+	
+	return cratelist
 
 def getCrates(conn):
 	cursor = conn.cursor()
@@ -67,6 +83,43 @@ def getCrates(conn):
 		row = cursor.fetchone()
 	
 	return crates
+# just the filenames, so we can generate a tar file.
+def filenamesfromCrates(conn):
+	cursor = conn.cursor()
+	crates = {}
+        files = []
+	
+	cursor.execute("SELECT id, name FROM crates")
+	
+	row = cursor.fetchone()
+	while row:
+		crates[row['name']] = []
+		
+		cur2 = conn.cursor()
+		cur2.execute("""
+			SELECT
+				track_locations.location,
+				track_locations.filename
+			
+			FROM crate_tracks
+				INNER JOIN library
+					ON crate_tracks.track_id = library.id
+				INNER JOIN track_locations
+					ON library.location = track_locations.id
+			WHERE
+				crate_tracks.crate_id = ?
+			
+			""", str(row['id']))
+		
+		track = cur2.fetchone()
+		
+		while track:
+			files.append(track[0])
+			track = cur2.fetchone()
+		
+		row = cursor.fetchone()
+	
+	return files
 
 def findTrack(conn, ntrack):
 	location = ntrack.getAttribute('location')
@@ -171,12 +224,27 @@ def main():
 	opt.add_option('-i', '--import', dest='export', action='store_false')
 	opt.add_option('-e', '--export', dest='export', action='store_true')
 	opt.add_option('-d', '--dbname', dest='dbname', default=defdb)
+	opt.add_option('-l', '--list', dest='listcrates', action='store_true', default=False)
+	opt.add_option('-t', '--tar', dest='tarcrates', action='store_true', default=False)
 	
 	(options, args) = opt.parse_args()
 
 	if options.export == None: options.export = True;	
 	conn = sqlite3.connect(options.dbname)
 	conn.row_factory = sqlite3.Row
+
+	if options.listcrates == True:
+		print "list of crates:"
+		for cratename in listCrates(conn):
+			print cratename
+		sys.exit(0)
+	# simple streaming tar to stdout... dont send anything else to stdout if we do this, as it will mess up the tar file
+	if options.tarcrates == True:
+                tar = tarfile.open(fileobj=sys.stdout,mode='w|')
+ 		for filename in filenamesfromCrates(conn):
+			tar.add(filename)
+		tar.close()
+		sys.exit(0)
 	
 	if options.export == True:
 		output = open(args[0], "w")  if len(args) > 0 else sys.stdout
