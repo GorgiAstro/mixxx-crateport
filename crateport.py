@@ -72,7 +72,7 @@ def getCrates(conn):
 			WHERE
 				crate_tracks.crate_id = ?
 			
-			""", str(row['id']))
+			""", (str(row['id']),))
 		
 		track = cur2.fetchone()
 		
@@ -83,6 +83,7 @@ def getCrates(conn):
 		row = cursor.fetchone()
 	
 	return crates
+
 # just the filenames, so we can generate a tar file.
 def filenamesfromCrates(conn):
 	cursor = conn.cursor()
@@ -109,7 +110,7 @@ def filenamesfromCrates(conn):
 			WHERE
 				crate_tracks.crate_id = ?
 			
-			""", str(row['id']))
+			""", (str(row['id']),))
 		
 		track = cur2.fetchone()
 		
@@ -261,4 +262,3 @@ def main():
 
 if __name__ == '__main__':
 	main()
-	
