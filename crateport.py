@@ -26,10 +26,10 @@ def generateCrateXML(crates):
 		for track in crates[cratename]:
 			ntrack = document.createElement('track')
 			ncrate.appendChild(ntrack)
-			for key in track.keys():
-				ntrack.setAttribute(key, unicode(track[key]))
+			for key in list(track.keys()):
+				ntrack.setAttribute(key, str(track[key]))
 	
-	return document.toxml()
+	return document.toprettyxml()
 
 def listCrates(conn):
 	cursor = conn.cursor()
@@ -88,7 +88,7 @@ def getCrates(conn):
 def filenamesfromCrates(conn):
 	cursor = conn.cursor()
 	crates = {}
-        files = []
+	files = []
 	
 	cursor.execute("SELECT id, name FROM crates")
 	
@@ -188,9 +188,9 @@ def importCrateXML(conn, dcrate):
 		try:
 			cursor.execute("INSERT INTO crates(name) VALUES(?)", 
 				(ncrate.getAttribute('name'),))
-			print "Creating new Crate:", ncrate.getAttribute('name')
+			print("Creating new Crate:", ncrate.getAttribute('name'))
 		except sqlite3.IntegrityError:
-			print "Already Created:", ncrate.getAttribute('name')
+			print("Already Created:", ncrate.getAttribute('name'))
 		
 		cursor.execute("SELECT id FROM crates WHERE name = ?", 
 			(ncrate.getAttribute('name'),))
@@ -203,13 +203,13 @@ def importCrateXML(conn, dcrate):
 			track = findTrack(conn, ntrack)
 			if track != None:
 				try:
-					print "Adding a Track"
+					print("Adding a Track")
 					cursor.execute("""
 						INSERT INTO crate_tracks(crate_id, track_id)
 						VALUES(?, ?)
 					""", (str(crate['id']), track['id']))
 				except sqlite3.IntegrityError:
-					print "Track already in crate"
+					print("Track already in crate")
 
 def main():
 	home = os.path.expanduser('~')
@@ -235,15 +235,15 @@ def main():
 	conn.row_factory = sqlite3.Row
 
 	if options.listcrates == True:
-		print "list of crates:"
+		print("list of crates:")
 		for cratename in listCrates(conn):
-			print cratename
+			print(cratename)
 		sys.exit(0)
 	# simple streaming tar to stdout... dont send anything else to stdout if we do this, as it will mess up the tar file
 	if options.tarcrates == True:
-                tar = tarfile.open(fileobj=sys.stdout,mode='w|')
+		tar = tarfile.open(fileobj=sys.stdout,mode='w|')
 		# list set stuff to make list unique to get rid of doubled up file names.
- 		for filename in list(set(filenamesfromCrates(conn))):
+		for filename in list(set(filenamesfromCrates(conn))):
 			tar.add(filename)
 		tar.close()
 		sys.exit(0)
@@ -251,7 +251,7 @@ def main():
 	if options.export == True:
 		output = open(args[0], "w")  if len(args) > 0 else sys.stdout
 		crates = getCrates(conn)
-		output.write(generateCrateXML(crates).encode('utf8') + "\n")
+		output.write(generateCrateXML(crates))
 	else:
 		input = open(args[0], "r") if len(args) > 0 else sys.stdin
 		crates = xml.dom.minidom.parse(input)
