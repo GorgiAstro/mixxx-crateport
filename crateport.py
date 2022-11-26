@@ -211,6 +211,18 @@ def importCrateXML(conn, dcrate):
 				except sqlite3.IntegrityError:
 					print("Track already in crate")
 
+def export_separate_m3u_files(crates, write_rel_path=False):
+	for cratename, tracks in crates.items():
+		with open(f'{cratename}.m3u', 'w') as m3u_out:
+			m3u_out.write("#EXTM3U\n")
+			for track in tracks:
+				m3u_out.write("#EXTINF\n")
+				song_path = track['location']
+				if write_rel_path:
+					song_path = os.path.relpath(song_path)
+				m3u_out.write(song_path + "\n")
+				
+
 def main():
 	home = os.path.expanduser('~')
 	uname = platform.uname()
@@ -222,40 +234,45 @@ def main():
 	defdb = cfgdir + '/mixxxdb.sqlite'	
 
 	opt = OptionParser(description='Import and Export Crates from Mixxx')
-	opt.add_option('-i', '--import', dest='export', action='store_false')
-	opt.add_option('-e', '--export', dest='export', action='store_true')
+	opt.add_option('-i', '--import', dest='importt', action='store_true', default=False)
+	opt.add_option('-e', '--export', dest='export', action='store_true', default=False)
 	opt.add_option('-d', '--dbname', dest='dbname', default=defdb)
 	opt.add_option('-l', '--list', dest='listcrates', action='store_true', default=False)
 	opt.add_option('-t', '--tar', dest='tarcrates', action='store_true', default=False)
+	opt.add_option('-m', '--m3u', dest='export_separate_m3u_files', action='store_true', default=False)
+	opt.add_option('-r', '--relativepath', dest='relative_path_for_m3u', action='store_true', default=False)
 	
 	(options, args) = opt.parse_args()
 
-	if options.export == None: options.export = True;	
 	conn = sqlite3.connect(options.dbname)
 	conn.row_factory = sqlite3.Row
 
-	if options.listcrates == True:
+	if options.listcrates:
 		print("list of crates:")
 		for cratename in listCrates(conn):
 			print(cratename)
 		sys.exit(0)
 	# simple streaming tar to stdout... dont send anything else to stdout if we do this, as it will mess up the tar file
-	if options.tarcrates == True:
+	elif options.tarcrates:
 		tar = tarfile.open(fileobj=sys.stdout,mode='w|')
 		# list set stuff to make list unique to get rid of doubled up file names.
 		for filename in list(set(filenamesfromCrates(conn))):
 			tar.add(filename)
 		tar.close()
-		sys.exit(0)
-	
-	if options.export == True:
+		sys.exit(0)	
+	elif options.export:
 		output = open(args[0], "w")  if len(args) > 0 else sys.stdout
 		crates = getCrates(conn)
 		output.write(generateCrateXML(crates))
-	else:
+	elif options.importt:
 		input = open(args[0], "r") if len(args) > 0 else sys.stdin
 		crates = xml.dom.minidom.parse(input)
 		importCrateXML(conn, crates)
+	elif options.export_separate_m3u_files:
+		crates = getCrates(conn)
+		export_separate_m3u_files(crates, options.relative_path_for_m3u)
+	else:
+		print('No valid option selected, closing')
 	
 	conn.commit()
 	conn.close()
