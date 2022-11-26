@@ -228,11 +228,13 @@ def export_separate_m3u_files(crates, write_rel_path=False):
 
 valid_chars = "-_.()'[]&éèàöäüßâù %s%s" % (string.ascii_letters, string.digits)
 
-def export_files_to_folder(crates, out_folder, verbose=False):
+def export_files_to_folder(crates, out_folder, clean_orphan_files=False, verbose=False):
 	if not os.path.isdir(out_folder):
 		raise Exception(f'Specified folder {out_folder} does not exist, exiting')
 	
 	input("This can copy gigabytes of data, are you sure?! Press Ctrl+C to cancel")
+	if clean_orphan_files:
+		input("The option --cleanorphanfiles was selected, it will delete all files that are not in the database anymore, are you sure?! Press Ctrl+C to cancel")
 
 	for cratename, tracks in crates.items():
 		crate_out_folder = os.path.join(out_folder, cratename)
@@ -240,6 +242,7 @@ def export_files_to_folder(crates, out_folder, verbose=False):
 			print(f'Output folder for crate {cratename} not existing yet, creating it to {crate_out_folder}')
 			os.mkdir(crate_out_folder)
 
+		new_track_list = []  # remembers all new tracks to clean the orphan ones
 		for track in tracks:
 			track_path_in = track['location']
 			track_extension = os.path.splitext(track['filename'])[1]
@@ -247,6 +250,7 @@ def export_files_to_folder(crates, out_folder, verbose=False):
 			track_name_pretty = ''.join(c for c in track_name_pretty if c in valid_chars)
 
 			track_path_out = os.path.join(crate_out_folder, track_name_pretty)
+			new_track_list.append(track_path_out)
 			if os.path.exists(track_path_out):
 				if verbose:
 					print(f'Skipping already existing file {track_path_out}')
@@ -254,6 +258,22 @@ def export_files_to_folder(crates, out_folder, verbose=False):
 				if verbose:
 					print(f'Creating file {track_path_out}')
 				shutil.copy(track_path_in, track_path_out)
+
+		if clean_orphan_files:
+			# Look for files that are in folder but not in the crate (per the database)
+			# These "orphan" files will be deleted
+			files_list = os.listdir(crate_out_folder)
+			for found_file in files_list:
+				file_full_path = os.path.join(crate_out_folder, found_file)
+				if not os.path.isfile(file_full_path):
+					if verbose:
+						print(f'Found orphan file {file_full_path} is actually not a file, weird')
+					continue
+				
+				if file_full_path not in new_track_list:
+					if verbose:
+						print(f'{file_full_path} is not in crate {cratename} anymore, deleting.')
+					os.remove(file_full_path)
 
 def main():
 	home = os.path.expanduser('~')
@@ -275,6 +295,7 @@ def main():
 	opt.add_option('-r', '--relativepath', dest='relative_path_for_m3u', action='store_true', default=False)
 	opt.add_option('-f', '--exportfilestofolder', dest='export_files_to_folder')
 	opt.add_option('-v', '--verbose', dest='verbose', action='store_true', default=False)
+	opt.add_option('-c', '--cleanorphanfiles', dest='clean_orphan_files', action='store_true', default=False)
 	
 	(options, args) = opt.parse_args()
 
@@ -307,7 +328,12 @@ def main():
 		export_separate_m3u_files(crates, options.relative_path_for_m3u)
 	elif options.export_files_to_folder is not None:
 		crates = getCrates(conn)
-		export_files_to_folder(crates, options.export_files_to_folder, options.verbose)
+		export_files_to_folder(
+			crates=crates, 
+			out_folder=options.export_files_to_folder, 
+			clean_orphan_files=options.clean_orphan_files, 
+			verbose=options.verbose
+		)
 	else:
 		print('No valid option selected, closing')
 	
