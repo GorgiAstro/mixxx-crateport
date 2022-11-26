@@ -11,6 +11,7 @@ import fileinput
 import tarfile
 from optparse import OptionParser
 import shutil
+import string
 
 
 def generateCrateXML(crates):
@@ -213,6 +214,7 @@ def importCrateXML(conn, dcrate):
 					print("Track already in crate")
 
 def export_separate_m3u_files(crates, write_rel_path=False):
+	input("This will overwrite crate files if a M3U file already has the same name, are you sure? Press Ctrl+C to cancel")
 	for cratename, tracks in crates.items():
 		with open(f'{cratename}.m3u', 'w') as m3u_out:
 			m3u_out.write("#EXTM3U\n")
@@ -224,7 +226,7 @@ def export_separate_m3u_files(crates, write_rel_path=False):
 				m3u_out.write(song_path + "\n")
 
 
-invalid_chars_filename = '<>:"/\|?*'
+valid_chars = "-_.()'[]&éèàöäüßâù %s%s" % (string.ascii_letters, string.digits)
 
 def export_files_to_folder(crates, out_folder, verbose=False):
 	if not os.path.isdir(out_folder):
@@ -242,8 +244,7 @@ def export_files_to_folder(crates, out_folder, verbose=False):
 			track_path_in = track['location']
 			track_extension = os.path.splitext(track['filename'])[1]
 			track_name_pretty = f"{track['artist']} - {track['title']}{track_extension}"
-			for char in invalid_chars_filename:
-				track_name_pretty = track_name_pretty.replace(char, '')
+			track_name_pretty = ''.join(c for c in track_name_pretty if c in valid_chars)
 
 			track_path_out = os.path.join(crate_out_folder, track_name_pretty)
 			if os.path.exists(track_path_out):
