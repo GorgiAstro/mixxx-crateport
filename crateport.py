@@ -10,6 +10,7 @@ import platform
 import fileinput
 import tarfile
 from optparse import OptionParser
+import shutil
 
 
 def generateCrateXML(crates):
@@ -221,7 +222,35 @@ def export_separate_m3u_files(crates, write_rel_path=False):
 				if write_rel_path:
 					song_path = os.path.relpath(song_path)
 				m3u_out.write(song_path + "\n")
-				
+
+
+invalid_chars_filename = '<>:"/\|?*'
+
+def export_files_to_folder(crates, out_folder):
+	if not os.path.isdir(out_folder):
+		raise Exception(f'Specified folder {out_folder} does not exist, exiting')
+	
+	input("This can copy gigabytes of data, are you sure?! Press Ctrl+C to cancel")
+
+	for cratename, tracks in crates.items():
+		crate_out_folder = os.path.join(out_folder, cratename)
+		if not os.path.isdir(crate_out_folder):
+			print(f'Output folder for crate {cratename} not existing yet, creating it to {crate_out_folder}')
+			os.mkdir(crate_out_folder)
+
+		for track in tracks:
+			track_path_in = track['location']
+			track_extension = os.path.splitext(track['filename'])[1]
+			track_name_pretty = f"{track['artist']} - {track['title']}{track_extension}"
+			for char in invalid_chars_filename:
+				track_name_pretty = track_name_pretty.replace(char, '')
+
+			track_path_out = os.path.join(crate_out_folder, track_name_pretty)
+			if os.path.exists(track_path_out):
+				print(f'Skipping already existing file {track_path_out}')
+				continue
+			
+			shutil.copy(track_path_in, track_path_out)
 
 def main():
 	home = os.path.expanduser('~')
@@ -241,6 +270,7 @@ def main():
 	opt.add_option('-t', '--tar', dest='tarcrates', action='store_true', default=False)
 	opt.add_option('-m', '--m3u', dest='export_separate_m3u_files', action='store_true', default=False)
 	opt.add_option('-r', '--relativepath', dest='relative_path_for_m3u', action='store_true', default=False)
+	opt.add_option('-f', '--exportfilestofolder', dest='export_files_to_folder')
 	
 	(options, args) = opt.parse_args()
 
@@ -271,6 +301,9 @@ def main():
 	elif options.export_separate_m3u_files:
 		crates = getCrates(conn)
 		export_separate_m3u_files(crates, options.relative_path_for_m3u)
+	elif options.export_files_to_folder is not None:
+		crates = getCrates(conn)
+		export_files_to_folder(crates, options.export_files_to_folder)
 	else:
 		print('No valid option selected, closing')
 	
