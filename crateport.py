@@ -226,7 +226,7 @@ def export_separate_m3u_files(crates, write_rel_path=False):
 
 invalid_chars_filename = '<>:"/\|?*'
 
-def export_files_to_folder(crates, out_folder):
+def export_files_to_folder(crates, out_folder, verbose=False):
 	if not os.path.isdir(out_folder):
 		raise Exception(f'Specified folder {out_folder} does not exist, exiting')
 	
@@ -247,10 +247,12 @@ def export_files_to_folder(crates, out_folder):
 
 			track_path_out = os.path.join(crate_out_folder, track_name_pretty)
 			if os.path.exists(track_path_out):
-				print(f'Skipping already existing file {track_path_out}')
-				continue
-			
-			shutil.copy(track_path_in, track_path_out)
+				if verbose:
+					print(f'Skipping already existing file {track_path_out}')
+			else:
+				if verbose:
+					print(f'Creating file {track_path_out}')
+				shutil.copy(track_path_in, track_path_out)
 
 def main():
 	home = os.path.expanduser('~')
@@ -271,6 +273,7 @@ def main():
 	opt.add_option('-m', '--m3u', dest='export_separate_m3u_files', action='store_true', default=False)
 	opt.add_option('-r', '--relativepath', dest='relative_path_for_m3u', action='store_true', default=False)
 	opt.add_option('-f', '--exportfilestofolder', dest='export_files_to_folder')
+	opt.add_option('-v', '--verbose', dest='verbose', action='store_true', default=False)
 	
 	(options, args) = opt.parse_args()
 
@@ -303,7 +306,7 @@ def main():
 		export_separate_m3u_files(crates, options.relative_path_for_m3u)
 	elif options.export_files_to_folder is not None:
 		crates = getCrates(conn)
-		export_files_to_folder(crates, options.export_files_to_folder)
+		export_files_to_folder(crates, options.export_files_to_folder, options.verbose)
 	else:
 		print('No valid option selected, closing')
 	
