@@ -215,15 +215,19 @@ def importCrateXML(conn, dcrate):
 
 def export_separate_m3u_files(crates, write_rel_path=False):
 	input("This will overwrite crate files if a M3U file already has the same name, are you sure? Press Ctrl+C to cancel")
-	for cratename, tracks in crates.items():
-		with open(f'{cratename}.m3u', 'w') as m3u_out:
-			m3u_out.write("#EXTM3U\n")
-			for track in tracks:
-				m3u_out.write("#EXTINF\n")
-				song_path = track['location']
-				if write_rel_path:
-					song_path = os.path.relpath(song_path)
-				m3u_out.write(song_path + "\n")
+	with open('all.m3u', 'w') as m3u_all_out:
+		m3u_all_out.write("#EXTM3U\n")
+		for cratename, tracks in crates.items():
+			with open(f'{cratename}.m3u', 'w') as m3u_out:
+				m3u_out.write("#EXTM3U\n")
+				for track in tracks:
+					m3u_all_out.write("#EXTINF\n")
+					m3u_out.write("#EXTINF\n")
+					song_path = track['location']
+					if write_rel_path:
+						song_path = os.path.relpath(song_path)
+					m3u_all_out.write(song_path + "\n")
+					m3u_out.write(song_path + "\n")
 
 
 valid_chars = "-_.()'[]&éèàöäüßâù %s%s" % (string.ascii_letters, string.digits)
